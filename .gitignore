@@ -69,6 +69,12 @@ artifacts/
 *.svclog
 *.scc
 
+# No Image Files in code base!!
+*.png
+*.jpg
+*.bmp
+*.gif
+
 # Chutzpah Test files
 _Chutzpah*
 
