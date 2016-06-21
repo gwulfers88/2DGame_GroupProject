@@ -13,6 +13,10 @@
   <ItemGroup>
     <ClCompile Include="sys_win.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="defs.h" />
+    <ClInclude Include="sys_win.h" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{022BDF11-3AE3-490E-A64B-4790A0463D3B}</ProjectGuid>
     <RootNamespace>SDL_Game</RootNamespace>

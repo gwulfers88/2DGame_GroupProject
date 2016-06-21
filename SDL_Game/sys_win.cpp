@@ -1,13 +1,9 @@
-#include <Windows.h>
-#include <SDL\SDL.h>
+#include "sys_win.h"
 
-//Linking to our libs
-#pragma comment (lib, "SDL2.lib")
-#pragma comment (lib, "SDL2main.lib")
-
-bool			isRunning	= false;
-SDL_Window*		sdlWindow	= 0;
-SDL_Renderer*	renderer	= 0;
+// TODO(George): Create Update method and Rendering methods.
+// TODO(George): Create File loading systems and File writing systems.
+// TODO(George): Create Keyboard and mouse Handling.
+// TODO(George): Create Memory handling.
 
 //Message Handling
 LRESULT CALLBACK wndProc(HWND hwnd, Uint32 msg, WPARAM wparam, LPARAM lparam)
@@ -42,17 +38,17 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
 	wc.style = CS_HREDRAW | CS_VREDRAW;
 	wc.hInstance = hInst;
 	wc.hbrBackground = (HBRUSH)COLOR_WINDOW;
-	wc.lpszClassName = "gj2016";
+	wc.lpszClassName = wndClassName;
 	wc.hCursor = 0;	//TODO: Add cursors and icons to this program.
 	wc.hIcon = 0;
 	wc.lpfnWndProc = (WNDPROC)wndProc;
 
 	RegisterClass(&wc);
 
-	HWND window = CreateWindow("gj2016", "SDL Group Project",
+	HWND window = CreateWindow(wndClassName, wndTitle,
 								WS_OVERLAPPEDWINDOW,
 								CW_USEDEFAULT, CW_USEDEFAULT,
-								1024, 768,
+								wndWidth, wndHeight,
 								0, 0, hInst, 0);
 
 	if(window)
@@ -70,7 +66,7 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
 		sdlWindow = SDL_CreateWindowFrom((void*)window);
 
 		char error[MAX_PATH];
-		strcpy(error, SDL_GetError());
+		stringCopy(error, SDL_GetError());
 		OutputDebugStringA(error);
 
 		if(!sdlWindow)
@@ -89,6 +85,44 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
 			DestroyWindow(window);
 			return -4;
 		}
+
+		i32 RefreshRate = 0;
+		HDC dc = GetDC(window);
+		i32 winRefreshRate = GetDeviceCaps(dc, VREFRESH);
+
+		if( winRefreshRate > 1 )
+		{
+			RefreshRate = winRefreshRate / 2;
+		}
+		else
+		{
+			RefreshRate = 30;
+		}
+
+		r32 dt = 1.0f / RefreshRate;
+
+		u32 totalSize = Megabytes(16);
+		gameMemoryBlock = VirtualAlloc( 0, totalSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+
+		if(!gameMemoryBlock)
+		{
+			SDL_DestroyRenderer(renderer);
+			SDL_DestroyWindow(sdlWindow);
+			SDL_Quit();
+			DestroyWindow(window);
+			return -5;
+		}
+
+		char* buffer = 0;	//Uninitialized memory
+		u32 bufferSize = Kilobytes(1);
+		char* buffer2 = 0;	//Uninitialized memory
+		u32 buffer2Size = Kilobytes(16);
+
+		buffer = (char*)gameMemoryBlock;
+		buffer2 = (char*)gameMemoryBlock + bufferSize;
+
+		stringCopy(buffer, "Writing to my first buffer that was allocated into this block.");
+		stringCopy(buffer2, "Now iam writing to buffer2 or something like that that was allocated after buffer 1.");
 
 		isRunning = true;
 
@@ -126,6 +160,11 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
 	{
 		// TODO: Handle Error Loggin here!!
 		return -1;
+	}
+
+	if(gameMemoryBlock)
+	{
+		VirtualFree(gameMemoryBlock, 0, MEM_RELEASE);
 	}
 
 	//Close
