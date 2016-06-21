@@ -1,11 +1,14 @@
 #include "sys_win.h"
+#include "Game.cpp"
 
-// TODO(George): Create Update method and Rendering methods.
+// TODO(George): Make Game.h and Game.cpp this into a dll.
+// TODO(George): Make a replaying function.
+// TODO(George): Make a Hot reload.
 // TODO(George): Create File loading systems and File writing systems.
 // TODO(George): Create Keyboard and mouse Handling.
 // TODO(George): Create Memory handling.
 
-//Message Handling
+// Message Handling
 LRESULT CALLBACK wndProc(HWND hwnd, Uint32 msg, WPARAM wparam, LPARAM lparam)
 {
 	LRESULT result = 0;
@@ -27,7 +30,7 @@ LRESULT CALLBACK wndProc(HWND hwnd, Uint32 msg, WPARAM wparam, LPARAM lparam)
 	return result;
 }
 
-//WINDOWS MAIN FUNCTION
+// WINDOWS MAIN FUNCTION
 // hInst = current instance of the program
 // hPrevInst = previous instance which is not used anymore.
 // cmdLine = holds command line arguments to be passed in to the program
@@ -113,17 +116,6 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
 			return -5;
 		}
 
-		char* buffer = 0;	//Uninitialized memory
-		u32 bufferSize = Kilobytes(1);
-		char* buffer2 = 0;	//Uninitialized memory
-		u32 buffer2Size = Kilobytes(16);
-
-		buffer = (char*)gameMemoryBlock;
-		buffer2 = (char*)gameMemoryBlock + bufferSize;
-
-		stringCopy(buffer, "Writing to my first buffer that was allocated into this block.");
-		stringCopy(buffer2, "Now iam writing to buffer2 or something like that that was allocated after buffer 1.");
-
 		isRunning = true;
 
 		while(isRunning)
@@ -146,14 +138,7 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
 				}
 			}
 
-			// TODO: Handle Game Update
-
-			SDL_SetRenderDrawColor(renderer, 50, 150, 250, 255);
-			SDL_RenderClear(renderer);
-
-			// TODO: DRAW SHIT HERE
-
-			SDL_RenderPresent(renderer);
+			UpdateRender(renderer);
 		}
 	}
 	else
