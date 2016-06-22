@@ -20,6 +20,18 @@ SDL_Renderer*	renderer		= 0;
 
 void* gameMemoryBlock = 0;
 
+struct Win32State
+{
+	HANDLE recordingHandle;
+	u32 recordingIndex;
+
+	HANDLE playbackHandle;
+	u32 playbackIndex;
+
+	void* memoryBlock;
+	u32 memorySize;
+};
+
 void stringCopy(i8* dest, const i8* src)
 {
 	while(*src)

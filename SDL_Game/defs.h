@@ -1,7 +1,7 @@
 #ifndef DEFS_H
 #define DEFS_H
 
-#include <SDL\SDL.h>
+#include "..\deps\include\SDL\SDL.h"
 
 // SIGNED DATA TYPES
 // 2^8 = 256 / 2 = -128 to 127

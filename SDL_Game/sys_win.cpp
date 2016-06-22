@@ -1,11 +1,12 @@
 #include "sys_win.h"
 #include "Game.cpp"
 
-// TODO(George): Make Game.h and Game.cpp this into a dll.
-// TODO(George): Make a replaying function.
+//DEBUGGIN ONLY
+// TODO(George): Make Game.h and Game.cpp into a dll.
 // TODO(George): Make a Hot reload.
+
 // TODO(George): Create File loading systems and File writing systems.
-// TODO(George): Create Keyboard and mouse Handling.
+// TODO(George): Create mouse Handling.
 // TODO(George): Create Memory handling.
 
 // Message Handling
@@ -28,6 +29,63 @@ LRESULT CALLBACK wndProc(HWND hwnd, Uint32 msg, WPARAM wparam, LPARAM lparam)
 	}
 
 	return result;
+}
+
+void BeginRecording(Win32State* state, u32 index)
+{
+	state->recordingHandle = CreateFile("recording.wrf", GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+	state->recordingIndex = index;
+
+	DWORD bytesToWrite = state->memorySize;
+	DWORD bytesWritten = 0;
+	WriteFile(state->recordingHandle, state->memoryBlock, bytesToWrite, &bytesWritten, 0);
+}
+
+void RecordingInput(Win32State* state, GameController* input)
+{
+	DWORD bytesWritten = 0;
+	if(WriteFile(state->recordingHandle, input, sizeof(*input), &bytesWritten, 0) == TRUE)
+	{
+
+	}
+}
+
+void EndRecording(Win32State* state)
+{
+	CloseHandle(state->recordingHandle);
+	state->recordingIndex = 0;
+}
+
+void BeginPlayback(Win32State* state, u32 index)
+{
+	state->playbackHandle = CreateFile("recording.wrf", GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0);
+	state->playbackIndex = index;
+
+	DWORD bytesToRead = state->memorySize;
+	DWORD bytesRead = 0;
+	ReadFile(state->playbackHandle, state->memoryBlock, bytesToRead, &bytesRead, 0);
+}
+
+void EndPlayback(Win32State* state)
+{
+	CloseHandle(state->playbackHandle);
+	state->playbackIndex = 0;
+}
+
+void PlaybackInput(Win32State* state, GameController* input)
+{
+	DWORD bytesRead = 0;
+
+	if(ReadFile(state->playbackHandle, input, sizeof(*input), &bytesRead, 0))
+	{
+		if(bytesRead == 0)
+		{
+			u32 playbackIndex = state->playbackIndex;
+			EndPlayback(state);
+			BeginPlayback(state, playbackIndex);
+			ReadFile(state->playbackHandle, input, sizeof(*input), &bytesRead, 0);
+		}
+	}
 }
 
 // WINDOWS MAIN FUNCTION
@@ -116,6 +174,20 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
 			return -5;
 		}
 
+		GameController input = {0};
+		GameState game = {0};
+
+		game.memoryBlock = gameMemoryBlock;
+		game.blockSize = totalSize;
+		game.renderer = renderer;
+		game.screenW = wndWidth;
+		game.screenH = wndHeight;
+		game.dt = dt;
+
+		Win32State state = {0};
+		state.memoryBlock = gameMemoryBlock;
+		state.memorySize = totalSize;
+
 		isRunning = true;
 
 		while(isRunning)
@@ -130,6 +202,67 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
 						isRunning = false;
 					}break;
 
+				case WM_KEYUP:
+				case WM_KEYDOWN:
+				case WM_SYSKEYUP:
+				case WM_SYSKEYDOWN:
+					{
+						u32 vkCode = (u32)msg.wParam;	// This contains the keycode for the key that the user pressed.
+						bool isDown = ((msg.lParam & (1 << 31)) == 0);	// Check to see if the key is down now.
+						bool wasDown = ((msg.lParam & (1 << 30)) != 0);	// Check to see if the key was down previously.
+
+						if(isDown != wasDown)
+						{
+							if(vkCode == 'W')
+							{
+								input.actionUp.isDown = isDown;
+							}
+							else if(vkCode == 'S')
+							{
+								input.actionDown.isDown = isDown;
+							}
+							else if(vkCode == 'A')
+							{
+								input.actionLeft.isDown = isDown;
+							}
+							else if(vkCode == 'D')
+							{
+								input.actionRight.isDown = isDown;
+							}
+							else if(vkCode == VK_ESCAPE)
+							{
+								input.back.isDown = isDown;
+							}
+							else if(vkCode == 'O')
+							{
+								if(isDown)
+								{
+									if(state.recordingIndex == 0)
+									{
+										BeginRecording(&state, 1);
+									}
+									else
+									{
+										EndRecording(&state);
+										BeginPlayback(&state, 1);
+									}
+								}
+							}
+							else if(vkCode == 'P')
+							{
+								if(isDown)
+								{
+									if(state.playbackIndex > 0)
+									{
+										EndPlayback(&state);
+										ZeroMemory(&input, sizeof(input));
+									}
+								}
+							}
+						}
+
+					}break;
+
 				default:
 					{
 						TranslateMessage(&msg);
@@ -138,7 +271,22 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
 				}
 			}
 
-			UpdateRender(renderer);
+			if(input.back.isDown)
+			{
+				isRunning = false;
+				PostQuitMessage(0);
+			}
+
+			if(state.recordingIndex > 0)
+			{
+				RecordingInput(&state, &input);
+			}
+			else if(state.playbackIndex > 0)
+			{
+				PlaybackInput(&state, &input);
+			}
+
+			UpdateRender(&game, &input);
 		}
 	}
 	else
