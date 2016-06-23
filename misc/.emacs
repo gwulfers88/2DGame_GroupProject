@@ -15,8 +15,8 @@
 (setq casey-linux (featurep 'x))
 (setq casey-win32 (not (or casey-aquamacs casey-linux)))
 
-(setq casey-todo-file "w:/handmade/code/todo.txt")
-(setq casey-log-file "w:/handmade/code/log.txt")
+(setq casey-todo-file "g:/SDL_Game/todo.txt")
+(setq casey-log-file "g:/SDL_Game/log.txt")
 
 (global-hl-line-mode 1)
 (set-face-background 'hl-line "midnight blue")
@@ -243,8 +243,8 @@
      (insert "   $File: $\n")
      (insert "   $Date: $\n")
      (insert "   $Revision: $\n")
-     (insert "   $Creator: Casey Muratori $\n")
-     (insert "   $Notice: (C) Copyright 2014 by Molly Rocket, Inc. All Rights Reserved. $\n")
+     (insert "   $Creator: George Wulfers $\n")
+     (insert "   $Notice: (C) Copyright 2016 by 8Box Studios, LLC. All Rights Reserved. $\n")
      (insert "   ======================================================================== */\n")
      (insert "\n")
      (insert "#define ")
@@ -264,8 +264,8 @@
      (insert "   $File: $\n")
      (insert "   $Date: $\n")
      (insert "   $Revision: $\n")
-     (insert "   $Creator: Casey Muratori $\n")
-     (insert "   $Notice: (C) Copyright 2014 by Molly Rocket, Inc. All Rights Reserved. $\n")
+     (insert "   $Creator: George Wulfers $\n")
+     (insert "   $Notice: (C) Copyright 2016 by 8Box Studios, LLC. All Rights Reserved. $\n")
      (insert "   ======================================================================== */\n")
   )
 
