@@ -36,6 +36,7 @@ struct GameCodeDLL
     FILETIME lastWriteTime;
 };
 
+//TODO(George): MAKE A FILE FOR THIS SHIT
 void stringCopy(i8* dest, const i8* src)
 {
     while(*src)

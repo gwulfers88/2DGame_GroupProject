@@ -243,6 +243,7 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
         
         isRunning = true;
 
+        // NOTE: PROGRAM LOOP!!
         while(isRunning)
         {
             // NOTE: compare File times for us to be able to reload the new game code
@@ -250,7 +251,7 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
             if(CompareFileTime(&currentFileTime, &gameCode.lastWriteTime) != 0)
             {
                 Win32UnloadGameCode(&gameCode);
-                gameCode = Win32LoadGameCode("Game.dll", "Game_temp.dll", "locktmp");
+                gameCode = Win32LoadGameCode("Game.dll", "Game_temp.dll", "lock.tmp");
             }
             
             MSG msg = {0};
