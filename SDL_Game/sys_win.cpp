@@ -115,7 +115,7 @@ GameCodeDLL Win32LoadGameCode(char* sourceNameDLL, char* tempNameDLL, char* lock
         {
             result.UpdateRender = (update_render*)GetProcAddress(result.codeLib, "UpdateRender");
 
-            result.isValid = (result.UpdateRender);
+            result.isValid = ((result.UpdateRender) ? true : false);
         }
     }
 

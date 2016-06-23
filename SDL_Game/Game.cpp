@@ -5,19 +5,20 @@
     walking 4 ways (up down left right).
 */
 
-struct Entity
-{
-    r32 xPos;
-    r32 yPos;
-};
+// NOTE: Moved Entity struct to Game.h
 
-static Entity* player = 0;
+inline void movePlayer(GameState* gameState, Entity* entity, r32 xDir, r32 yDir)
+{
+    //Player movement
+    entity->xPos += xDir * 50 * gameState->dt;
+    entity->yPos += yDir * 50 * gameState->dt;
+}
 
 extern "C" UPDATE_RENDER(UpdateRender)
 {
     if(!gameState->isInitialized)
     {
-        player = (Entity*)gameState->memoryBlock;
+        gameState->player = (Entity*)gameState->memoryBlock;
         gameState->isInitialized = true;
     }
     else
@@ -44,19 +45,21 @@ extern "C" UPDATE_RENDER(UpdateRender)
             yDir = 1;
         }
 
-        //Player movement
-        player->xPos += xDir * 50.0f * gameState->dt;
-        player->yPos += yDir * 50.0f * gameState->dt;
-
+        movePlayer(gameState, gameState->player, xDir, yDir);
+        
         SDL_Rect rect = {0};
-        rect.x = player->xPos;
-        rect.y = player->yPos;
-        rect.w = 100 * 0.75f;
+        rect.x = (u32)gameState->player->xPos;
+        rect.y = (u32)gameState->player->yPos;
+        rect.w = (u32)(100 * 0.75f);
         rect.h = 100;
 
-        if(player->xPos > gameState->screenW)
+        if(gameState->player->xPos > gameState->screenW)
         {
-            player->xPos = 0;
+            gameState->player->xPos = 0;
+        }
+        else if(gameState->player->xPos > gameState->screenH)
+        {
+            gameState->player->yPos = 0;
         }
 
         SDL_SetRenderDrawColor(gameState->renderer, 50, 150, 250, 255);

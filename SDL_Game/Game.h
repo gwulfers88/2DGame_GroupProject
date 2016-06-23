@@ -19,6 +19,12 @@ struct GameController
     GameButton back;
 };
 
+struct Entity
+{
+    r32 xPos;
+    r32 yPos;
+};
+
 struct GameState
 {
     void* memoryBlock;      //4
@@ -28,6 +34,8 @@ struct GameState
     SDL_Renderer* renderer; //4
     r32 dt;                 //4
 
+    Entity* player;
+    
     bool isInitialized;
 }; //24 bytes
 
