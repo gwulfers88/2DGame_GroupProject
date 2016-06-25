@@ -54,7 +54,7 @@ struct GameState
     r32 dt;                 //4
 
     u32 entityCount;
-    Entity entities[200];
+    Entity* player;
     
     bool isInitialized;
 }; //24 bytes

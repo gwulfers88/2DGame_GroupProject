@@ -49,7 +49,6 @@ void stringCopy(i8* dest, const i8* src)
     {
         *dest++ = *src++;
     }
-
     *dest++ = 0;
 }
 

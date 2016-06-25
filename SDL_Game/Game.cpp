@@ -7,22 +7,20 @@
 
 // IMPORTANT: Moved Entity struct to Game.h
 
-void AddPlayer(GameState* gameState)
+void AddPlayer(GameState* gameState, GameMemory* memory)
 {
-    gameState->entities[gameState->entityCount].type = ENTITY_PLAYER;
-    gameState->entities[gameState->entityCount].xPos = 0;
-    gameState->entities[gameState->entityCount].yPos = 0;
+    gameState->player = (Entity*)memory->memoryBlock;
+    gameState->player->type = ENTITY_PLAYER;
+    gameState->player->xPos = 0;
+    gameState->player->yPos = 0;
     gameState->entityCount++;       
 }
 
 extern "C" UPDATE_RENDER(UpdateRender)
 {
     if(!gameState->isInitialized)
-    {       
-        gameState->entities[gameState->entityCount].type = ENTITY_NULL;
-        gameState->entityCount++;
-
-        AddPlayer(gameState);
+    {
+        AddPlayer(gameState, memory);
         
         gameState->isInitialized = true;
     }
@@ -52,41 +50,23 @@ extern "C" UPDATE_RENDER(UpdateRender)
 
         r32 speed = 100.0f;
 
-        for(u32 entityIndex = 0;
-            entityIndex < gameState->entityCount;
-            entityIndex++)
-        {
-            Entity* entity = &gameState->entities[entityIndex];
-            
-            if(entity->type == ENTITY_PLAYER)
-            {
-                entity->xPos += xDir * speed * gameState->dt;
-                entity->yPos += yDir * speed * gameState->dt;
-            }
-        }
+        gameState->player;
+
+        gameState->player->xPos += xDir * speed * gameState->dt;
+        gameState->player->yPos += yDir * speed * gameState->dt;
 
         // RENDER
         SDL_SetRenderDrawColor(gameState->renderer, 50, 150, 250, 255);
         SDL_RenderClear(gameState->renderer);
-        
-        for(u32 entityIndex = 0;
-            entityIndex < gameState->entityCount;
-            entityIndex++)
-        {
-            Entity* entity = &gameState->entities[entityIndex];
-            
-            if(entity->type == ENTITY_PLAYER)
-            {
-                SDL_Rect rect = {0};
-                rect.x = (i32)entity->xPos;
-                rect.y = (i32)entity->yPos;
-                rect.w = (i32)(100 * 0.75f);
-                rect.h = 100;
 
-                SDL_SetRenderDrawColor(gameState->renderer, 0, 255, 0, 255);
-                SDL_RenderFillRect(gameState->renderer, &rect);
-            }
-        }
+        SDL_Rect rect = {0};
+        rect.x = (i32)gameState->player->xPos;
+        rect.y = (i32)gameState->player->yPos;
+        rect.w = (i32)(100 * 0.75f);
+        rect.h = 100;
+
+        SDL_SetRenderDrawColor(gameState->renderer, 0, 255, 0, 255);
+        SDL_RenderFillRect(gameState->renderer, &rect);
 
         SDL_RenderPresent(gameState->renderer);
     }

@@ -58,10 +58,7 @@ void BeginRecording(Win32State* state, u32 index)
 void RecordingInput(Win32State* state, GameController* input)
 {
     DWORD bytesWritten = 0;
-    if(WriteFile(state->recordingHandle, input, sizeof(*input), &bytesWritten, 0) == TRUE)
-    {
-
-    }
+    WriteFile(state->recordingHandle, input, sizeof(*input), &bytesWritten, 0);
 }
 
 void EndRecording(Win32State* state)
@@ -328,8 +325,7 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
 
         r32 sleepIsGranular = (timeBeginPeriod(1) == TIMERR_NOERROR);
         
-        LARGE_INTEGER lastCounter;
-        QueryPerformanceCounter(&lastCounter);
+        LARGE_INTEGER lastCounter = Win32GetClock();
 
         i64 lastCycles = __rdtsc();
         
@@ -479,8 +475,7 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
                 //TODO: MISSED FRAME RATE!!
             }
             
-            LARGE_INTEGER endCounter;
-            QueryPerformanceCounter(&endCounter);
+            LARGE_INTEGER endCounter = Win32GetClock();
 
             i64 endCycles = __rdtsc();
             

@@ -34,8 +34,8 @@ ALT-U        Undo
 ALT-J        Jump to a function by name.
 
 CTRL-S       Start incremental search.
-  CTRL-S     Moves to next occurrence.
-  CTRL-R     Moves to previous occurrence.
+CTRL-S       Moves to next occurrence.
+CTRL-R       Moves to previous occurrence.
 
 ALT-O        Query replace.
 ALT-L        Replace inside block.
