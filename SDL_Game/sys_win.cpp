@@ -1,11 +1,27 @@
 #include "sys_win.h"
+#include <stdio.h>
 
-//DEBUGGIN ONLY
-// TODO(George): Make a Hot reload.
+/*
+  TODO(George): THIS IS A SIMPLE PLATFORM LAYER
 
-// TODO(George): Create File loading systems and File writing systems.
-// TODO(George): Create mouse Handling.
-// TODO(George): Create Memory handling.
+  - Saved Game Locations
+  - Getting a handle to our own exe
+  - Asset loading path
+  - Threading (launch a thread)
+  - Sleep/timeBeginPeriod
+  - FullScreen support
+  - control cursor visibility (WM_SETCURSOR)
+  - WM_ACTIVATEAPP (for when we are not the active application)
+  - Create Timer and lock us to desired FPS.
+  - Create File loading systems and File writing systems.
+  - Create mouse Handling.
+  - Create Memory handling.
+  - ClipCursor (for multimonitor support).
+  
+  NOTE: This is a partial list of what needs to get done
+*/
+
+static i64 globalPerformanceCountFreq = 0;
 
 // Message Handling
 LRESULT CALLBACK wndProc(HWND hwnd, Uint32 msg, WPARAM wparam, LPARAM lparam)
@@ -139,6 +155,71 @@ void Win32UnloadGameCode(GameCodeDLL* gameCode)
     gameCode->UpdateRender = 0;
 }
 
+LARGE_INTEGER Win32GetClock(void)
+{
+    LARGE_INTEGER result;
+    QueryPerformanceCounter(&result);
+    return result;
+}
+
+r32 Win32GetSecondsElapsed(LARGE_INTEGER start, LARGE_INTEGER end)
+{
+    r32 result = ((r32)(end.QuadPart - start.QuadPart) /
+                  (r32)globalPerformanceCountFreq);
+    return result;
+}
+
+ReadFileResult ReadEntireFile(char* filename)
+{
+    ReadFileResult result = {0};
+
+    HANDLE fileHandle = CreateFile(filename, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0);
+    if(fileHandle != INVALID_HANDLE_VALUE)
+    {
+        LARGE_INTEGER fileSize;
+        if(GetFileSizeEx(fileHandle, &fileSize))
+        {
+            //TODO: Cretae Buffer for file context.
+            u32 fileSize32 = (u32)fileSize.QuadPart;
+            result.data = VirtualAlloc(0, fileSize32,
+                                      MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+
+            if(result.data)
+            {
+                DWORD bytesRead = 0;
+                if(ReadFile(fileHandle, result.data, fileSize32, &bytesRead, 0) &&
+                   (fileSize32 == bytesRead))
+                {
+                    //NOTE: file read successfully
+                    result.fileSize = bytesRead;
+                }
+                else
+                {
+                    //TODO: Logging
+                    VirtualFree(result.data, 0, MEM_RELEASE);
+                    result.data = 0;
+                }
+            }
+            else
+            {
+                //TODO: Logging
+            }
+        }
+        else
+        {
+            //TODO: Logging
+        }
+
+        CloseHandle(fileHandle);
+    }
+    else
+    {
+        //TODO: Logging
+    }
+
+    return result;
+}
+
 // WINDOWS MAIN FUNCTION
 // hInst = current instance of the program
 // hPrevInst = previous instance which is not used anymore.
@@ -158,10 +239,10 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
     RegisterClass(&wc);
 
     HWND window = CreateWindow(wndClassName, wndTitle,
-                                WS_OVERLAPPEDWINDOW,
-                                CW_USEDEFAULT, CW_USEDEFAULT,
-                                wndWidth, wndHeight,
-                                0, 0, hInst, 0);
+                               WS_OVERLAPPEDWINDOW,
+                               CW_USEDEFAULT, CW_USEDEFAULT,
+                               wndWidth, wndHeight,
+                               0, 0, hInst, 0);
     
     if(window)
     {
@@ -211,7 +292,7 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
             RefreshRate = 30;
         }
 
-        r32 dt = 1.0f / RefreshRate;
+        r32 targetSecsPerFrame = 1.0f / RefreshRate;
 
         u32 totalSize = Megabytes(16);
         gameMemoryBlock = VirtualAlloc( 0, totalSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
@@ -227,13 +308,15 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
 
         GameController input = {0};
         GameState game = {0};
-
-        game.memoryBlock = gameMemoryBlock;
-        game.blockSize = totalSize;
+        GameMemory memory = {0};
+        
+        memory.memoryBlock = gameMemoryBlock;
+        memory.blockSize = totalSize;
+        
         game.renderer = renderer;
         game.screenW = wndWidth;
         game.screenH = wndHeight;
-        game.dt = dt;
+        game.dt = targetSecsPerFrame;
 
         Win32State state = {0};
         state.memoryBlock = gameMemoryBlock;
@@ -243,6 +326,17 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
         
         isRunning = true;
 
+        r32 sleepIsGranular = (timeBeginPeriod(1) == TIMERR_NOERROR);
+        
+        LARGE_INTEGER lastCounter;
+        QueryPerformanceCounter(&lastCounter);
+
+        i64 lastCycles = __rdtsc();
+        
+        LARGE_INTEGER performanceFreqPerSecRes;
+        QueryPerformanceFrequency(&performanceFreqPerSecRes);
+        globalPerformanceCountFreq = performanceFreqPerSecRes.QuadPart;
+        
         // NOTE: PROGRAM LOOP!!
         while(isRunning)
         {
@@ -259,15 +353,15 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
             {
                 switch(msg.message)
                 {
-                case WM_CLOSE:
+                    case WM_CLOSE:
                     {
                         isRunning = false;
                     }break;
 
-                case WM_KEYUP:
-                case WM_KEYDOWN:
-                case WM_SYSKEYUP:
-                case WM_SYSKEYDOWN:
+                    case WM_KEYUP:
+                    case WM_KEYDOWN:
+                    case WM_SYSKEYUP:
+                    case WM_SYSKEYDOWN:
                     {
                         u32 vkCode = (u32)msg.wParam;   // This contains the keycode for the key that the user pressed.
                         bool isDown = ((msg.lParam & (1 << 31)) == 0);  // Check to see if the key is down now.
@@ -325,7 +419,7 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
 
                     }break;
 
-                default:
+                    default:
                     {
                         TranslateMessage(&msg);
                         DispatchMessage(&msg);
@@ -350,9 +444,61 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
 
             if(gameCode.UpdateRender)
             {
-                gameCode.UpdateRender(&game, &input);
+                gameCode.UpdateRender(&game, &input, &memory);
             }
-        }
+
+            LARGE_INTEGER workCounter = Win32GetClock();
+            r32 workSecsElapsed = Win32GetSecondsElapsed(lastCounter, workCounter);
+
+            r32 secondsElapsed = workSecsElapsed;
+            if(secondsElapsed < targetSecsPerFrame)
+            {
+                if(sleepIsGranular)
+                {
+                    DWORD sleepMS = (DWORD)(1000.0f *
+                                            (targetSecsPerFrame - secondsElapsed));
+                    if(sleepMS > 0)
+                    {
+                        Sleep(sleepMS);
+                    }
+                }
+
+                r32 testSecsElapsed = Win32GetSecondsElapsed(lastCounter, Win32GetClock());
+                if(testSecsElapsed < targetSecsPerFrame)
+                {
+                    //TODO: LOG MISSED SLEEP HERE!!
+                }
+
+                while(secondsElapsed < targetSecsPerFrame)
+                {
+                    secondsElapsed = Win32GetSecondsElapsed(lastCounter, Win32GetClock());
+                }
+            }
+            else
+            {
+                //TODO: MISSED FRAME RATE!!
+            }
+            
+            LARGE_INTEGER endCounter;
+            QueryPerformanceCounter(&endCounter);
+
+            i64 endCycles = __rdtsc();
+            
+            r64 elapsedCounts = (r64)(endCounter.QuadPart - lastCounter.QuadPart);
+            r64 elapsedCycles = (r64)(endCycles - lastCycles);
+
+            r32 MSperFrame = ((1000.0f * Win32GetSecondsElapsed(lastCounter, endCounter)));
+            r32 FPS = (r32)(globalPerformanceCountFreq / elapsedCounts);
+            r32 MegaCyclesPerFrame = (r32)(elapsedCycles / (1000.0f * 1000.0f));
+            
+            char buffer[256];
+            sprintf_s(buffer, "%.02fms, %.02ffps, %.02fmcpf\n", MSperFrame, FPS, MegaCyclesPerFrame);            
+            OutputDebugStringA(buffer);
+            
+            lastCounter = endCounter;
+            lastCycles = endCycles;
+            
+        } // NOTE: END OF WHILE LOOP
 
         //IMPORTANT: Unload this when we exit the program.
         Win32UnloadGameCode(&gameCode);        

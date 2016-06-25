@@ -28,6 +28,12 @@ struct Win32State
     u32 memorySize;
 };
 
+struct ReadFileResult
+{
+    void* data;
+    u32 fileSize;
+};
+
 struct GameCodeDLL
 {
     HMODULE codeLib;

@@ -3,6 +3,12 @@
 
 #include "defs.h"
 
+/*
+  IMPORTANT:
+
+  This file is our game API that will be shared between platform specific code.
+*/
+
 struct GameButton
 {
     bool isDown;
@@ -19,27 +25,41 @@ struct GameController
     GameButton back;
 };
 
+enum EntityType
+{
+    ENTITY_NULL,
+    ENTITY_PLAYER,
+    ENTITY_WALL,
+};
+
 struct Entity
 {
+    EntityType type;
     r32 xPos;
     r32 yPos;
 };
 
+struct GameMemory
+{
+    void* memoryBlock;
+    u32 blockSize;
+};
+
 struct GameState
 {
-    void* memoryBlock;      //4
     u32 screenW;            //4
     u32 screenH;            //4
-    u32 blockSize;          //4
     SDL_Renderer* renderer; //4
+
     r32 dt;                 //4
 
-    Entity* player;
+    u32 entityCount;
+    Entity entities[200];
     
     bool isInitialized;
 }; //24 bytes
 
-#define UPDATE_RENDER(name) void name(GameState* gameState, GameController* input)
+#define UPDATE_RENDER(name) void name(GameState* gameState, GameController* input, GameMemory* memory)
 typedef UPDATE_RENDER(update_render);
 
 #endif

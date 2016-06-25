@@ -5,20 +5,25 @@
     walking 4 ways (up down left right).
 */
 
-// NOTE: Moved Entity struct to Game.h
+// IMPORTANT: Moved Entity struct to Game.h
 
-inline void movePlayer(GameState* gameState, Entity* entity, r32 xDir, r32 yDir)
+void AddPlayer(GameState* gameState)
 {
-    //Player movement
-    entity->xPos += xDir * 50 * gameState->dt;
-    entity->yPos += yDir * 50 * gameState->dt;
+    gameState->entities[gameState->entityCount].type = ENTITY_PLAYER;
+    gameState->entities[gameState->entityCount].xPos = 0;
+    gameState->entities[gameState->entityCount].yPos = 0;
+    gameState->entityCount++;       
 }
 
 extern "C" UPDATE_RENDER(UpdateRender)
 {
     if(!gameState->isInitialized)
-    {
-        gameState->player = (Entity*)gameState->memoryBlock;
+    {       
+        gameState->entities[gameState->entityCount].type = ENTITY_NULL;
+        gameState->entityCount++;
+
+        AddPlayer(gameState);
+        
         gameState->isInitialized = true;
     }
     else
@@ -45,28 +50,43 @@ extern "C" UPDATE_RENDER(UpdateRender)
             yDir = 1;
         }
 
-        movePlayer(gameState, gameState->player, xDir, yDir);
-        
-        SDL_Rect rect = {0};
-        rect.x = (u32)gameState->player->xPos;
-        rect.y = (u32)gameState->player->yPos;
-        rect.w = (u32)(100 * 0.75f);
-        rect.h = 100;
+        r32 speed = 100.0f;
 
-        if(gameState->player->xPos > gameState->screenW)
+        for(u32 entityIndex = 0;
+            entityIndex < gameState->entityCount;
+            entityIndex++)
         {
-            gameState->player->xPos = 0;
-        }
-        else if(gameState->player->xPos > gameState->screenH)
-        {
-            gameState->player->yPos = 0;
+            Entity* entity = &gameState->entities[entityIndex];
+            
+            if(entity->type == ENTITY_PLAYER)
+            {
+                entity->xPos += xDir * speed * gameState->dt;
+                entity->yPos += yDir * speed * gameState->dt;
+            }
         }
 
+        // RENDER
         SDL_SetRenderDrawColor(gameState->renderer, 50, 150, 250, 255);
         SDL_RenderClear(gameState->renderer);
+        
+        for(u32 entityIndex = 0;
+            entityIndex < gameState->entityCount;
+            entityIndex++)
+        {
+            Entity* entity = &gameState->entities[entityIndex];
+            
+            if(entity->type == ENTITY_PLAYER)
+            {
+                SDL_Rect rect = {0};
+                rect.x = (i32)entity->xPos;
+                rect.y = (i32)entity->yPos;
+                rect.w = (i32)(100 * 0.75f);
+                rect.h = 100;
 
-        SDL_SetRenderDrawColor(gameState->renderer, 0, 255, 0, 255);
-        SDL_RenderFillRect(gameState->renderer, &rect);
+                SDL_SetRenderDrawColor(gameState->renderer, 0, 255, 0, 255);
+                SDL_RenderFillRect(gameState->renderer, &rect);
+            }
+        }
 
         SDL_RenderPresent(gameState->renderer);
     }
