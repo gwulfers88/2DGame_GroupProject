@@ -166,7 +166,16 @@ r32 Win32GetSecondsElapsed(LARGE_INTEGER start, LARGE_INTEGER end)
     return result;
 }
 
-ReadFileResult ReadEntireFile(char* filename)
+FREE_FILE(FreeFile)
+{
+    if(fileResult->data)
+    {
+        VirtualFree(fileResult->data, 0, MEM_RELEASE);
+        fileResult->data = 0;
+    }
+}
+
+READ_ENTIRE_FILE(ReadEntireFile)
 {
     ReadFileResult result = {0};
 
@@ -193,8 +202,7 @@ ReadFileResult ReadEntireFile(char* filename)
                 else
                 {
                     //TODO: Logging
-                    VirtualFree(result.data, 0, MEM_RELEASE);
-                    result.data = 0;
+                    FreeFile(&result);
                 }
             }
             else
@@ -303,18 +311,20 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
             return -5;
         }
 
-        GameController input = {0};
-        GameState game = {0};
-        GameMemory memory = {0};
-        
+        GameMemory memory = {};
         memory.memoryBlock = gameMemoryBlock;
         memory.blockSize = totalSize;
+        memory.readEntireFile = ReadEntireFile;
+        memory.freeFile = FreeFile;
         
-        game.renderer = renderer;
-        game.screenW = wndWidth;
-        game.screenH = wndHeight;
-        game.dt = targetSecsPerFrame;
+        Render render = {};
+        render.renderer = renderer;
+        render.screenW = wndWidth;
+        render.screenH = wndHeight;
 
+        GameController input = {0};
+        input.dt = targetSecsPerFrame;
+        
         Win32State state = {0};
         state.memoryBlock = gameMemoryBlock;
         state.memorySize = totalSize;
@@ -440,7 +450,7 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
 
             if(gameCode.UpdateRender)
             {
-                gameCode.UpdateRender(&game, &input, &memory);
+                gameCode.UpdateRender(&memory, &input, &render);
             }
 
             LARGE_INTEGER workCounter = Win32GetClock();

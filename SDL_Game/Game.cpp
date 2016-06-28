@@ -7,25 +7,114 @@
 
 // IMPORTANT: Moved Entity struct to Game.h
 
-void AddPlayer(GameState* gameState, GameMemory* memory)
+/*
+  TODO(George): Things to do for monday!!!
+  - Make assertions that will let us know if something is prone to fail.
+  - separate memory block into persistent area and non-persistent area so we
+    know where we have our permanent data and where our transient data.
+  - Make it possible to have multiple players in our game. (maybe 2 or 4 max).
+  - let the game layer know how to write files.
+  - Move player position to bottom center of player.
+  - make simple tile map.
+  - make simple tile map collision.
+  - encapsulate SDL_ calls into simpler functions.
+  - make color ranges from actual size into percentages.
+  - Make v2 math struct.
+*/
+
+//0.0f - 1.0f 0 being dark and 1 bright 
+void SetDrawColor(Render* render, r32 r, r32 g, r32 b)
 {
-    gameState->player = (Entity*)memory->memoryBlock;
-    gameState->player->type = ENTITY_PLAYER;
-    gameState->player->xPos = 0;
-    gameState->player->yPos = 0;
-    gameState->entityCount++;       
+    SDL_SetRenderDrawColor(render->renderer, (u8)(r * 255), (u8)(g * 255), (u8)(b * 255), 255);
+}
+
+void DrawRect(Render* render, i32 posX, i32 posY, i32 width, i32 height)
+{            
+    SDL_Rect rect = {0};
+    rect.x = posX;
+    rect.y = posY;
+    rect.w = width;
+    rect.h = height;
+
+    SDL_RenderFillRect(render->renderer, &rect);
+}
+
+struct TileMap
+{
+    u32 countX;
+    u32 countY;
+    u32 width;
+    u32 height;
+    u32 offsetX;
+    u32 offsetY;
+    u32 *tiles;
+};
+
+u32 GetTileID(TileMap* tileMap, u32 testTileX, u32 testTileY)
+{
+    u32 tileID = 0;
+    tileID = tileMap->tiles[testTileY * tileMap->countX + testTileX];
+    return tileID;
+}
+
+bool IsTileEmpty(TileMap* tileMap, i32 testX, i32 testY)
+{
+    bool empty = false;
+    
+    //Find out if the player position is inside of a tile that has a wall on it.
+    u32 testTileX = (u32)((testX - (r32)tileMap->offsetX) / (r32)tileMap->width);
+    u32 testTileY = (u32)((testY - (r32)tileMap->offsetY) / (r32)tileMap->height);
+
+    empty = (GetTileID(tileMap, testTileX, testTileY) == 0);
+
+    return empty;
 }
 
 extern "C" UPDATE_RENDER(UpdateRender)
 {
-    if(!gameState->isInitialized)
-    {
-        AddPlayer(gameState, memory);
+
+    #define TILE_COUNT_X 13
+    #define TILE_COUNT_Y 9
+    u32 TileMaps[TILE_COUNT_Y][TILE_COUNT_X] =
+        {
+            {1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1},
+            {1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+            {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+            {1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1},
+            {0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0},
+            {1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1},
+            {1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1},
+            {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+            {1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1},
+        };
+
+    TileMap tileMap = {};
+
+    tileMap.countX = TILE_COUNT_X;
+    tileMap.countY = TILE_COUNT_Y;
+    tileMap.width = 80;
+    tileMap.height = 80;
+    tileMap.offsetX = 0;
+    tileMap.offsetY = 0;
+    
+    tileMap.tiles = (u32 *) TileMaps;
         
-        gameState->isInitialized = true;
+    i32 playerWidth = (i32)(tileMap.width * 0.75f);
+    i32 playerHeight = tileMap.height;
+    
+    GameState* gameState = (GameState*)memory->memoryBlock;
+    
+    //INITIALIZATION
+    if(!memory->isInitialized)
+    {
+        gameState->player.xPos = 200;
+        gameState->player.yPos = 200;
+        
+        memory->isInitialized = true;
     }
     else
     {
+
         //UPDATE
         r32 xDir = 0;
         r32 yDir = 0;
@@ -48,26 +137,53 @@ extern "C" UPDATE_RENDER(UpdateRender)
             yDir = 1;
         }
 
-        r32 speed = 100.0f;
+        r32 speed = 128.0f;
 
-        gameState->player;
+        r32 newPlayerX = gameState->player.xPos;
+        r32 newPlayerY = gameState->player.yPos;
+        
+        newPlayerX += xDir * speed * input->dt;
+        newPlayerY += yDir * speed * input->dt;
 
-        gameState->player->xPos += xDir * speed * gameState->dt;
-        gameState->player->yPos += yDir * speed * gameState->dt;
-
+        if(IsTileEmpty(&tileMap, (i32)newPlayerX - (i32)(playerWidth * 0.5f), (i32)newPlayerY) &&
+           IsTileEmpty(&tileMap, (i32)newPlayerX + (i32)(playerWidth * 0.5f), (i32)newPlayerY) &&
+           IsTileEmpty(&tileMap, (i32)newPlayerX, (i32)newPlayerY))
+        {
+            gameState->player.xPos = newPlayerX;
+            gameState->player.yPos = newPlayerY;
+        }
+        
         // RENDER
-        SDL_SetRenderDrawColor(gameState->renderer, 50, 150, 250, 255);
-        SDL_RenderClear(gameState->renderer);
+        SetDrawColor(render, 0.5f, 0.75, 1.0f);
+        SDL_RenderClear(render->renderer);
 
-        SDL_Rect rect = {0};
-        rect.x = (i32)gameState->player->xPos;
-        rect.y = (i32)gameState->player->yPos;
-        rect.w = (i32)(100 * 0.75f);
-        rect.h = 100;
+        //DRAWING MAP
+        for(i32 row = 0; row < (i32)tileMap.countY; row++)
+        {
+            for(i32 col = 0; col < (i32)tileMap.countX; col++)
+            {
+                u32 tileID = GetTileID(&tileMap, col, row);
+                r32 color = 0.0f;
+                
+                if(tileID == 1)
+                {
+                    color = 1.0f;
+        
+                    u32 posX = tileMap.offsetX + col * tileMap.width;
+                    u32 posY = tileMap.offsetY + row * tileMap.height;
 
-        SDL_SetRenderDrawColor(gameState->renderer, 0, 255, 0, 255);
-        SDL_RenderFillRect(gameState->renderer, &rect);
+                    SetDrawColor(render, color, color, color);
+                    DrawRect(render, posX, posY, tileMap.width, tileMap.height);
+                }
+            }
+        }
+        
+        r32 playerCenterX = gameState->player.xPos - (playerWidth * 0.5f);
+        r32 playerCenterY = gameState->player.yPos - playerHeight;
 
-        SDL_RenderPresent(gameState->renderer);
+        SetDrawColor(render, .0f, 1.0f, 0.5f);
+        DrawRect(render, (i32)playerCenterX, (i32)playerCenterY, playerWidth, playerHeight);
+        
+        SDL_RenderPresent(render->renderer);
     }
 }
