@@ -3,17 +3,14 @@
 
 /*
   TODO(George): THIS IS A SIMPLE PLATFORM LAYER
-
-  - Saved Game Locations
-  - Getting a handle to our own exe
+  - Saved Game Locations (Not in game saving).
+  - Getting a handle to our own exe.
   - Asset loading path
-  - Threading (launch a thread)
+  - Multi-Threading (launch a thread)
   - Sleep/timeBeginPeriod
   - FullScreen support
   - control cursor visibility (WM_SETCURSOR)
   - WM_ACTIVATEAPP (for when we are not the active application)
-  - Create Timer and lock us to desired FPS.
-  - Create File loading systems and File writing systems.
   - Create mouse Handling.
   - Create Memory handling.
   - ClipCursor (for multimonitor support).
@@ -185,11 +182,9 @@ READ_ENTIRE_FILE(ReadEntireFile)
         LARGE_INTEGER fileSize;
         if(GetFileSizeEx(fileHandle, &fileSize))
         {
-            //TODO: Cretae Buffer for file context.
             u32 fileSize32 = (u32)fileSize.QuadPart;
             result.data = VirtualAlloc(0, fileSize32,
                                       MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-
             if(result.data)
             {
                 DWORD bytesRead = 0;
@@ -223,6 +218,22 @@ READ_ENTIRE_FILE(ReadEntireFile)
     }
 
     return result;
+}
+
+WRITE_ENTIRE_FILE(WriteEntireFile)
+{
+    HANDLE fileHandle = CreateFile(filename, GENERIC_WRITE, 0, 0, OPEN_EXISTING, 0, 0);
+    if(fileHandle != INVALID_HANDLE_VALUE)
+    {
+        DWORD bytesToWrite = 0;
+        WriteFile(fileHandle, fileResult->data, fileResult->fileSize, &bytesToWrite, 0);
+
+        CloseHandle(fileHandle);
+    }
+    else
+    {
+        //TODO: Logging
+    }
 }
 
 // WINDOWS MAIN FUNCTION
@@ -299,8 +310,12 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
 
         r32 targetSecsPerFrame = 1.0f / RefreshRate;
 
-        u32 totalSize = Megabytes(16);
-        gameMemoryBlock = VirtualAlloc( 0, totalSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+        GameMemory memory = {};
+        memory.permanentSize = Megabytes(16);
+        memory.transientSize = Megabytes(16);
+        memory.totalSize = memory.permanentSize + memory.transientSize;
+        
+        gameMemoryBlock = VirtualAlloc( 0, memory.totalSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 
         if(!gameMemoryBlock)
         {
@@ -311,12 +326,12 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
             return -5;
         }
 
-        GameMemory memory = {};
-        memory.memoryBlock = gameMemoryBlock;
-        memory.blockSize = totalSize;
+        memory.permanentBlock = gameMemoryBlock;
+        memory.transientBlock = (i8*)gameMemoryBlock + memory.permanentSize;
         memory.readEntireFile = ReadEntireFile;
         memory.freeFile = FreeFile;
-        
+        memory.writeEntireFile = WriteEntireFile;
+
         Render render = {};
         render.renderer = renderer;
         render.screenW = wndWidth;
@@ -327,7 +342,7 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
         
         Win32State state = {0};
         state.memoryBlock = gameMemoryBlock;
-        state.memorySize = totalSize;
+        state.memorySize = memory.totalSize;
 
         GameCodeDLL gameCode =  Win32LoadGameCode("Game.dll", "Game_temp.dll", "lock.tmp");
         

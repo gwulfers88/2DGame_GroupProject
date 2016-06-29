@@ -18,8 +18,13 @@ struct ReadFileResult
 #define READ_ENTIRE_FILE(name) ReadFileResult name(char* filename)
 typedef READ_ENTIRE_FILE(read_entire_file);
 
+#define WRITE_ENTIRE_FILE(name) void name(char* filename, ReadFileResult* fileResult)
+typedef WRITE_ENTIRE_FILE(write_entire_file);
+
 #define FREE_FILE(name) void name(ReadFileResult* fileResult)
 typedef FREE_FILE(free_file);
+
+#define Assert(expression) if(!expression){ *(int*)0 = 0; }
 
 struct GameButton
 {
@@ -54,11 +59,17 @@ struct Entity
 
 struct GameMemory
 {
-    void* memoryBlock;
-    u32 blockSize;
+    void* permanentBlock;
+    void* transientBlock;
+
+    u32 permanentSize;
+    u32 transientSize;
+    u32 totalSize;
+    
     bool isInitialized;
 
     read_entire_file* readEntireFile;
+    write_entire_file* writeEntireFile;
     free_file* freeFile;
 };
 
@@ -85,7 +96,7 @@ struct GameState
 {
     u32 entityCount;
     Entity player;
-}; //24 bytes
+};
 
 #define UPDATE_RENDER(name) void name(GameMemory* memory, GameController* input, Render* render)
 typedef UPDATE_RENDER(update_render);

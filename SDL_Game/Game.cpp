@@ -9,28 +9,25 @@
 
 /*
   TODO(George): Things to do for monday!!!
-  - Make assertions that will let us know if something is prone to fail.
-  - separate memory block into persistent area and non-persistent area so we
-    know where we have our permanent data and where our transient data.
-  - Make it possible to have multiple players in our game. (maybe 2 or 4 max).
-  - let the game layer know how to write files.
-  - Move player position to bottom center of player.
-  - make simple tile map.
-  - make simple tile map collision.
-  - encapsulate SDL_ calls into simpler functions.
-  - make color ranges from actual size into percentages.
+  - Make multiple tile maps.
+  - Be able to have the player go between maps (screens).
+  - Add smooth scrolling.
+  - Make world structure.
+  - Calculating World positions from screen coords or pixel positions.
   - Make v2 math struct.
+  - Make it possible to have multiple players in our game. (maybe 2 or 4 max).
 */
 
-//0.0f - 1.0f 0 being dark and 1 bright 
+//0.0f - 1.0f 0 being dark and 1 bright
 void SetDrawColor(Render* render, r32 r, r32 g, r32 b)
 {
-    SDL_SetRenderDrawColor(render->renderer, (u8)(r * 255), (u8)(g * 255), (u8)(b * 255), 255);
+    SDL_SetRenderDrawColor(render->renderer, (u8)(r * 255),
+                           (u8)(g * 255), (u8)(b * 255), 255);
 }
 
 void DrawRect(Render* render, i32 posX, i32 posY, i32 width, i32 height)
 {            
-    SDL_Rect rect = {0};
+    SDL_Rect rect = {};
     rect.x = posX;
     rect.y = posY;
     rect.w = width;
@@ -38,17 +35,6 @@ void DrawRect(Render* render, i32 posX, i32 posY, i32 width, i32 height)
 
     SDL_RenderFillRect(render->renderer, &rect);
 }
-
-struct TileMap
-{
-    u32 countX;
-    u32 countY;
-    u32 width;
-    u32 height;
-    u32 offsetX;
-    u32 offsetY;
-    u32 *tiles;
-};
 
 u32 GetTileID(TileMap* tileMap, u32 testTileX, u32 testTileY)
 {
@@ -72,38 +58,40 @@ bool IsTileEmpty(TileMap* tileMap, i32 testX, i32 testY)
 
 extern "C" UPDATE_RENDER(UpdateRender)
 {
-
     #define TILE_COUNT_X 13
     #define TILE_COUNT_Y 9
     u32 TileMaps[TILE_COUNT_Y][TILE_COUNT_X] =
         {
-            {1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1},
+            {1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1},
             {1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1},
             {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
             {1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1},
             {0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0},
             {1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1},
-            {1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1},
-            {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-            {1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1},
+            {1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1},
+            {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1},
+            {1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1},
         };
 
     TileMap tileMap = {};
 
     tileMap.countX = TILE_COUNT_X;
     tileMap.countY = TILE_COUNT_Y;
-    tileMap.width = 80;
-    tileMap.height = 80;
-    tileMap.offsetX = 0;
-    tileMap.offsetY = 0;
+    tileMap.width = 60;
+    tileMap.height = 60;
+    tileMap.offsetX = 30;
+    tileMap.offsetY = 30;
     
-    tileMap.tiles = (u32 *) TileMaps;
-        
+    tileMap.tiles = (u32 *)TileMaps;
+
     i32 playerWidth = (i32)(tileMap.width * 0.75f);
     i32 playerHeight = tileMap.height;
+
+    Assert((sizeof(GameState) <= memory->permanentSize));
     
-    GameState* gameState = (GameState*)memory->memoryBlock;
-    
+    //TODO: Aseert that gameState size does not exceed memory size.
+    GameState* gameState = (GameState*)memory->permanentBlock;
+
     //INITIALIZATION
     if(!memory->isInitialized)
     {
@@ -114,7 +102,6 @@ extern "C" UPDATE_RENDER(UpdateRender)
     }
     else
     {
-
         //UPDATE
         r32 xDir = 0;
         r32 yDir = 0;
@@ -154,7 +141,7 @@ extern "C" UPDATE_RENDER(UpdateRender)
         }
         
         // RENDER
-        SetDrawColor(render, 0.5f, 0.75, 1.0f);
+        SetDrawColor(render, 0.5f, 0.75f, 1.0f);
         SDL_RenderClear(render->renderer);
 
         //DRAWING MAP
