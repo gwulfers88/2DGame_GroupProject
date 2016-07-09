@@ -6,8 +6,8 @@
 #include "defs.h"
 
 bool            isRunning       = false;
-i32             wndWidth        = 1024;
-i32             wndHeight       = 768;
+i32             wndWidth        = 960;
+i32             wndHeight       = 540;
 i8              wndTitle[]      = "SDL Game Project";
 i8              wndClassName[8] = "gj2016";
 
@@ -15,6 +15,12 @@ SDL_Window*     sdlWindow       = 0;
 SDL_Renderer*   renderer        = 0;
 
 void* gameMemoryBlock = 0;
+
+struct Win32Dims
+{
+    i32 width;
+    i32 height;
+};
 
 struct Win32State
 {

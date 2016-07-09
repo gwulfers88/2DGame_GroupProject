@@ -2,10 +2,12 @@
 #define DEFS_H
 
 #include "..\deps\include\SDL\SDL.h"
+#include "..\deps\include\SDL\SDL_image.h"
 
 //Linking to our libs
 #pragma comment (lib, "..\\..\\deps\\lib\\debug\\win32\\SDL2.lib")
 #pragma comment (lib, "..\\..\\deps\\lib\\debug\\win32\\SDL2main.lib")
+#pragma comment (lib, "..\\..\\deps\\lib\\debug\\win32\\SDL2_image.lib")
 #pragma comment (lib, "User32.lib")
 #pragma comment (lib, "Gdi32.lib")
 

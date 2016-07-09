@@ -3,14 +3,13 @@
 
 /*
   TODO(George): THIS IS A SIMPLE PLATFORM LAYER
+  - WM_ACTIVATEAPP (for when we are not the active application)
+  - control cursor visibility (WM_SETCURSOR)
   - Saved Game Locations (Not in game saving).
   - Getting a handle to our own exe.
   - Asset loading path
   - Multi-Threading (launch a thread)
   - Sleep/timeBeginPeriod
-  - FullScreen support
-  - control cursor visibility (WM_SETCURSOR)
-  - WM_ACTIVATEAPP (for when we are not the active application)
   - Create mouse Handling.
   - Create Memory handling.
   - ClipCursor (for multimonitor support).
@@ -19,6 +18,60 @@
 */
 
 static i64 globalPerformanceCountFreq = 0;
+WINDOWPLACEMENT globalWindowPos = { sizeof(globalWindowPos) };
+bool isFullscreen = false;
+
+// Thank you Raymond Chen!!
+void Win32FullscreenToggle(HWND window)
+{
+    DWORD style = GetWindowLong(window, GWL_STYLE);
+    if (style & WS_OVERLAPPEDWINDOW)
+    {
+        MONITORINFO monitorInfo = { sizeof(monitorInfo) };
+        if (GetWindowPlacement(window, &globalWindowPos) &&
+            GetMonitorInfo(MonitorFromWindow(window, MONITOR_DEFAULTTOPRIMARY), &monitorInfo))
+        {//NOT BITWISE OPERATOR
+            SetWindowLong(window, GWL_STYLE, style & ~WS_OVERLAPPEDWINDOW);
+            SetWindowPos(window, HWND_TOP,
+                         monitorInfo.rcMonitor.left, monitorInfo.rcMonitor.top,
+                         monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left,
+                         monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top,
+                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        }
+    }
+    else
+    {
+        SetWindowLong(window, GWL_STYLE, style | WS_OVERLAPPEDWINDOW);
+        SetWindowPlacement(window, &globalWindowPos);
+        SetWindowPos(window, NULL, 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+                     SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+    }
+}
+
+Win32Dims GetWindowDimensions(HWND window)
+{
+    RECT clientArea;
+    GetClientRect(window, &clientArea);
+    Win32Dims result = {};
+    result.width = clientArea.right - clientArea.left;
+    result.height = clientArea.bottom - clientArea.top;
+    return result;
+}
+
+void Win32UpdateWindow(Win32Dims windowDims, i32* oldWidth, i32* oldHeight)
+{
+    if(isFullscreen)
+    {
+        *oldWidth = windowDims.width;
+        *oldHeight = windowDims.height;
+    }
+    else
+    {
+        *oldWidth = wndWidth;
+        *oldHeight = wndHeight;
+    }
+}
 
 // Message Handling
 LRESULT CALLBACK wndProc(HWND hwnd, Uint32 msg, WPARAM wparam, LPARAM lparam)
@@ -27,13 +80,13 @@ LRESULT CALLBACK wndProc(HWND hwnd, Uint32 msg, WPARAM wparam, LPARAM lparam)
 
     switch(msg)
     {
-    case WM_CLOSE:
+        case WM_CLOSE:
         {
             isRunning = false;
             PostQuitMessage(0);
         }break;
 
-    default:
+        default:
         {
             result = DefWindowProc(hwnd, msg, wparam, lparam);
         }
@@ -272,6 +325,8 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
             return -2;
         }
 
+        IMG_Init(IMG_INIT_JPG | IMG_INIT_PNG);
+        
         sdlWindow = SDL_CreateWindowFrom((void*)window);
 
         char error[MAX_PATH];
@@ -311,8 +366,8 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
         r32 targetSecsPerFrame = 1.0f / RefreshRate;
 
         GameMemory memory = {};
-        memory.permanentSize = Megabytes(16);
-        memory.transientSize = Megabytes(16);
+        memory.permanentSize = Megabytes(64);
+        memory.transientSize = Megabytes(64);
         memory.totalSize = memory.permanentSize + memory.transientSize;
         
         gameMemoryBlock = VirtualAlloc( 0, memory.totalSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
@@ -332,11 +387,13 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
         memory.freeFile = FreeFile;
         memory.writeEntireFile = WriteEntireFile;
 
+        Win32Dims windowDims = GetWindowDimensions(window);
+        
         Render render = {};
         render.renderer = renderer;
-        render.screenW = wndWidth;
-        render.screenH = wndHeight;
-
+        render.screenW = windowDims.width;
+        render.screenH = windowDims.height;
+        
         GameController input = {0};
         input.dt = targetSecsPerFrame;
         
@@ -392,17 +449,33 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
                         {
                             if(vkCode == 'W')
                             {
-                                input.actionUp.isDown = isDown;
+                                input.moveUp.isDown = isDown;
                             }
                             else if(vkCode == 'S')
                             {
-                                input.actionDown.isDown = isDown;
+                                input.moveDown.isDown = isDown;
                             }
                             else if(vkCode == 'A')
                             {
-                                input.actionLeft.isDown = isDown;
+                                input.moveLeft.isDown = isDown;
                             }
                             else if(vkCode == 'D')
+                            {
+                                input.moveRight.isDown = isDown;
+                            }
+                            if(vkCode == VK_UP)
+                            {
+                                input.actionUp.isDown = isDown;
+                            }
+                            else if(vkCode == VK_DOWN)
+                            {
+                                input.actionDown.isDown = isDown;
+                            }
+                            else if(vkCode == VK_LEFT)
+                            {
+                                input.actionLeft.isDown = isDown;
+                            }
+                            else if(vkCode == VK_RIGHT)
                             {
                                 input.actionRight.isDown = isDown;
                             }
@@ -438,6 +511,19 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
                             }
                         }
 
+                        if(isDown)
+                        {
+                            bool AltKeyWasDown = ((msg.lParam & (1 << 29)) != 0);
+                            if(vkCode == VK_RETURN && AltKeyWasDown)
+                            {
+                                if(msg.hwnd)
+                                {
+                                    isFullscreen = !isFullscreen;
+                                    Win32FullscreenToggle(msg.hwnd);
+                                }
+                            }
+                        }
+
                     }break;
 
                     default:
@@ -463,6 +549,9 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
                 PlaybackInput(&state, &input);
             }
 
+            Win32Dims windowDims = GetWindowDimensions(window);
+            Win32UpdateWindow(windowDims, (i32*)&render.screenW, (i32*)&render.screenH);
+            
             if(gameCode.UpdateRender)
             {
                 gameCode.UpdateRender(&memory, &input, &render);
@@ -476,8 +565,7 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
             {
                 if(sleepIsGranular)
                 {
-                    DWORD sleepMS = (DWORD)(1000.0f *
-                                            (targetSecsPerFrame - secondsElapsed));
+                    DWORD sleepMS = (DWORD)(1000.0f * (targetSecsPerFrame - secondsElapsed));
                     if(sleepMS > 0)
                     {
                         Sleep(sleepMS);
@@ -537,6 +625,7 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdLine, int cm
     //Close
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(sdlWindow);
+    IMG_Quit();
     SDL_Quit();
     DestroyWindow(window);
 

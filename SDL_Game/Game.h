@@ -2,6 +2,7 @@
 #define GAME_H
 
 #include "defs.h"
+#include "game_tiles.h"
 
 /*
   IMPORTANT:
@@ -34,6 +35,12 @@ struct GameButton
 struct GameController
 {
     r32 dt;
+
+    GameButton moveLeft;
+    GameButton moveRight;
+    GameButton moveUp;
+    GameButton moveDown;
+
     GameButton actionLeft;
     GameButton actionRight;
     GameButton actionUp;
@@ -41,20 +48,6 @@ struct GameController
 
     GameButton start;
     GameButton back;
-};
-
-enum EntityType
-{
-    ENTITY_NULL,
-    ENTITY_PLAYER,
-    ENTITY_WALL,
-};
-
-struct Entity
-{
-    EntityType type;
-    r32 xPos;
-    r32 yPos;
 };
 
 struct GameMemory
@@ -81,20 +74,50 @@ struct Render
     SDL_Renderer* renderer;
 };
 
-struct TileMap
+struct World
 {
-    u32 countX;
-    u32 countY;
-    u32 width;
-    u32 height;
-    u32 offsetX;
-    u32 offsetY;
-    u32 *tiles;
+    TileMap* tileMap;
+};
+
+enum EntityType
+{
+    ENTITY_NULL,
+    ENTITY_PLAYER,
+    ENTITY_WALL,
+};
+
+struct Entity
+{
+    EntityType type;
+    WorldPosition pos;
+};
+
+struct MemoryPool
+{
+    u32 size;
+    u32 used;
+    u8* base;
 };
 
 struct GameState
 {
-    u32 entityCount;
+    MemoryPool memoryPool;
+    World* world;
+
+    vec2 oldVel;
+
+    SDL_Texture* bgImage;
+    SDL_Texture* playerImage;
+
+    // NOTE: Facing directions
+    // 0: down
+    // 1 : up
+    // 2 : left
+    // 3 : right
+    i32 facingDir;
+    i32 frame;
+    r32 frameTimeElapsed;
+    
     Entity player;
 };
 
